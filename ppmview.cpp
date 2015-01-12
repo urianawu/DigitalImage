@@ -47,44 +47,16 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include <GLUT/glut.h>
-#include <openGL/glu.h>
+//#include <GLUT/glut.h>
+//#include <openGL/glu.h>
 #include <cstring>
+#include "ppmview.h"
 
 using namespace std;
 
-// =============================================================================
-// These variables will store the input ppm image's width, height, and color
-// depth values read in from the ppm header.
-// =============================================================================
-int width, height, maxcolor;
 
-// =============================================================================
-// You need 1 byte to store the information in an 8-bit color channel, and an
-// unsigned char provides 1 byte. Use an unsigned char array to store the rgb
-// pixmap data. glDrawPixels() requires an array of bytes in the order red,
-// green, blue, red, green, blue, etc... , but you can also use the order red,
-// green, blue, alpha, red, green, blue, alpha, etc... , if you want to give
-// each pixel an alpha channel. Just make sure to change GL_RGB to GL_RGBA in
-// glDrawPixels(); and GLUT_RGB to GLUT_RGBA in glutInitDisplayMode();
-// =============================================================================
-unsigned char *pixmap;
 
-// =============================================================================
-// You'll need to modify these functions to read and write pixmaps from ppm
-// files. Here writePPM() does nothing and readPPM() just creates an empty
-// white pixmap. Remember when you modify these function that OpenGL needs a
-// pixmap with row positions reversed (going from bottom to top instead of
-// from top to bottom). You may want to modify these functions' interfaces to
-// to take arguments like char or FILE pointers so you can pass in filenames
-// or open file streams.
-// =============================================================================
-int readPGM (char * filename);
-int readPPM (char * filename);
-void writePPM(char* outfile, int A);
-void writePGM(char* outfile, int A);
-
-int readPPM(char * filename, int & isppm)
+int ppmview::readPPM(char * filename)
 {
     
     width = 100; height = 100; // These values must be initialized for the OpenGL
@@ -114,11 +86,9 @@ int readPPM(char * filename, int & isppm)
             fscanf(imageFile,"%s",a);
         }
         cout<<"Its not ppm file"<<endl;
-        isppm = 0;
         readPGM(filename);
     }else {
         cout<<"Its ppm file"<<endl;
-        isppm = 1;
         if (strcmp(a, "P3") == 0) {
             A = 1;
         }
@@ -179,7 +149,7 @@ int readPPM(char * filename, int & isppm)
     return A;
 }
 
-int readPGM (char * filename)
+int ppmview::readPGM (char * filename)
 {
     int A = 0;  //ascii flag
     
@@ -269,7 +239,8 @@ int readPGM (char * filename)
 
     
 }
-void writePPM(char* outfile, int A)
+
+void ppmview::writePPM(char* outfile, int A)
 {
     FILE *out;
     out = fopen (outfile,"w");
@@ -315,7 +286,7 @@ void writePPM(char* outfile, int A)
     fclose(out);
 }
 
-void writePGM(char* outfile, int A)
+void ppmview::writePGM(char* outfile, int A)
 {
     FILE *out;
     out = fopen (outfile,"w");
@@ -361,6 +332,7 @@ void writePGM(char* outfile, int A)
     fclose(out);
 
 }
+
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
 //
@@ -368,72 +340,72 @@ void writePGM(char* outfile, int A)
 // in main(), to perform more sophisticated display or GUI behavior. This code
 // will service the bare minimum display needs for most assignments.
 // =============================================================================
-static void resize(int w, int h)
-{
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0,(w/2),0,(h/2),0,1);
-    glMatrixMode(GL_MODELVIEW);
-}
-static void display(void)
-{
-    glClear(GL_COLOR_BUFFER_BIT);
-    glRasterPos2i(0,0);
-    glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-    glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, pixmap);
-    glFlush();
-}
-static void processMouse(int button, int state, int x, int y)
-{
-    if(state == GLUT_UP)
-        exit(0);               // Exit on mouse click.
-}
-static void init(void)
-{
-    glClearColor(1,1,1,1); // Set background color.
-}
-
-// =============================================================================
-// main() Program Entry
-// =============================================================================
-int main(int argc, char *argv[])
-{
-    // Check command line arguments and read in the filename, then call readPPM().
-    char * filename;
-    char *outFile;
-    int Aflag;  //ASCII flag
-    int isppm;  //ppm flag
-    
-    filename = argv[1];
-    Aflag = readPPM(filename,isppm);
-    
-    // Check command line arguments and read in the output filename if present.
-    if (argc == 3) {
-        outFile = argv[2];
-        if (isppm = 1) {
-            writePPM(outFile, Aflag);
-        }else
-            writePGM(outFile, Aflag);
-        
-    }
-    
-    // OpenGL commands
-    glutInit(&argc, argv);
-    glutInitWindowPosition(100, 100); // Where the window will display on-screen.
-    glutInitWindowSize(width, height);
-    glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-    glutCreateWindow("ppmview");
-    init();
-    glutReshapeFunc(resize);
-    glutDisplayFunc(display);
-    glutMouseFunc(processMouse);
-    glutMainLoop();
-    
-    
-    return 0;
-}
-
+//static void resize(int w, int h)
+//{
+//    glViewport(0, 0, w, h);
+//    glMatrixMode(GL_PROJECTION);
+//    glLoadIdentity();
+//    glOrtho(0,(w/2),0,(h/2),0,1);
+//    glMatrixMode(GL_MODELVIEW);
+//}
+//static void display(void)
+//{
+//    glClear(GL_COLOR_BUFFER_BIT);
+//    glRasterPos2i(0,0);
+//    glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+//    glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, pixmap);
+//    glFlush();
+//}
+//static void processMouse(int button, int state, int x, int y)
+//{
+//    if(state == GLUT_UP)
+//        exit(0);               // Exit on mouse click.
+//}
+//static void init(void)
+//{
+//    glClearColor(1,1,1,1); // Set background color.
+//}
+//
+//// =============================================================================
+//// main() Program Entry
+//// =============================================================================
+//int main(int argc, char *argv[])
+//{
+//    // Check command line arguments and read in the filename, then call readPPM().
+//    char * filename;
+//    char *outFile;
+//    int Aflag;  //ASCII flag
+//    int isppm;  //ppm flag
+//    
+//    filename = argv[1];
+//    Aflag = readPPM(filename,isppm);
+//    
+//    // Check command line arguments and read in the output filename if present.
+//    if (argc == 3) {
+//        outFile = argv[2];
+//        if (isppm = 1) {
+//            writePPM(outFile, Aflag);
+//        }else
+//            writePGM(outFile, Aflag);
+//        
+//    }
+//    
+//    // OpenGL commands
+//    glutInit(&argc, argv);
+//    glutInitWindowPosition(100, 100); // Where the window will display on-screen.
+//    glutInitWindowSize(width, height);
+//    glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
+//    glutCreateWindow("ppmview");
+//    init();
+//    glutReshapeFunc(resize);
+//    glutDisplayFunc(display);
+//    glutMouseFunc(processMouse);
+//    glutMainLoop();
+//    
+//    
+//    return 0;
+//}
+//
 // =============================================================================
 // GENERAL RECOMMENDATIONS AND SOLUTIONS TO COMMON PROBLEMS
 //
