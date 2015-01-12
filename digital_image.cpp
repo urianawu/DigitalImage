@@ -280,7 +280,7 @@ void setPixels()
     /**
      change absolute path of the images here!!
      */
-    std::string fname = "/Users/Uriana/Desktop/DigitalImage/tree.ppm";
+    std::string fname = "/Users/Uriana/Desktop/DigitalImage/images_start/screen10.ppm";
 
     char *ffilename = new char[fname.length() + 1];
     std::strcpy(ffilename, fname.c_str());
@@ -290,7 +290,7 @@ void setPixels()
     height = foreimage.height;
     level = foreimage.maxcolor;
     
-    std::string bname = "/Users/Uriana/Desktop/DigitalImage/girl.ppm";
+    std::string bname = "/Users/Uriana/Desktop/DigitalImage/images_end/screen10.ppm";
     
     char *bfilename = new char[bname.length() + 1];
     std::strcpy(bfilename, bname.c_str());
@@ -499,9 +499,9 @@ int main(int argc, char *argv[])
 
     setPixels();
     initialize();
-    greenScreen = true;
-    greenScreening();
-    //selectOperation(0);
+    //greenScreen = true;
+    //greenScreening();
+    selectOperation(0);
     // OpenGL Commands:
     // Once "glutMainLoop" is executed, the program loops indefinitely to all
     // glut functions.
