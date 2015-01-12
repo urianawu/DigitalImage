@@ -10,12 +10,14 @@
 # Put both files in the same directory, 
 # navigate to that directory from the Terminal, 
 # and type 'make'. 
-#This will create a program called 'pr01'.
+#This will create a program called 'pr02'.
 
 CC		= g++
 LDFLAGS 	= -framework openGL -framework GLUT -lm
-PROJECT		= pr01
-FILES		= pr01.cpp
+PROJECT		= pr02
+FILES		= pr02.cpp vector2D.cpp vector2D.h
+
 
 ${PROJECT}:${FILES}
 	${CC} ${CFLAGS} -o ${PROJECT} ${FILES} ${LDFLAGS}
+
