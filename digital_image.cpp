@@ -1,333 +1,366 @@
 // =============================================================================
-// VIZA654/CSCE646 at Texas A&M University
-// Homework 0
-// Created by Anton Agana based from Ariel Chisholm's template
-// 05.23.2011
+// Template Program for VIZA654/CSCE646 at Texas A&M University
+// Created by Ariel Chisholm
+// 09.01.2009
 //
 // This file is supplied with an associated makefile. Put both files in the same
 // directory, navigate to that directory from the Linux shell, and type 'make'.
-// This will create a program called 'pr01' that you can run by entering
-// 'homework0' as a command in the shell.
+// This will create a program called 'ppmview' that you can run by entering
+// 'ppmview' as a command in the shell. The program will display a small white
+// pixmap. Clicking on the pixmap display window will close the program.
 //
-// If you are new to programming in Linux, there is an
+// This template program is designed to help you get jump-started on your first
+// ppmview assignment. If you are new to programming in Linux, there is an
 // excellent introduction to makefile structure and the gcc compiler here:
 //
 // http://www.cs.txstate.edu/labs/tutorials/tut_docs/Linux_Prog_Environment.pdf
 //
+// For viewing and editing code, Gedit is a good all-purpose text editor
+// available on the lab's Linux systems. You can find it on the main GNOME
+// menu under Debian>Apps>Editors.
 // =============================================================================
 
+// =============================================================================
+// [Project 3]
+// [You Wu]
+// [10/10/2013]
+// [It runs on MacOS 10.8.5. Put both files in the same directory, navigate to that directory from the Terminal, and type 'make'.This will create a program called 'ppmview'.]
+
+//
+// Always put a comment block like this at the top of your source files. You can
+// see in the prior comment block my own use of this structure to document the
+// origin and purpose of this template file.
+// =============================================================================
+
+// =============================================================================
+// For all your projects, please adopt a consistent, readable programming style.
+// Specifically pay attention to your maximum line lengths and indentation
+// levels. A variable maximum line length or indentation level will almost
+// always make your code unnecessarily difficult to read.
+//
+// Google (you may have heard of them) wisely mandates in their own C++ style
+// guide a maximum line length of 80 characters, and a indentation level of two
+// spaces (no tabs, just as in this document). This a very good coding style
+// and I recommend you adopt it unless you have already developed a readable and
+// consistent style of your own.
+// =============================================================================
 #include <cstdlib>
 #include <iostream>
-
-#ifdef __APPLE__
-#  include <GLUT/glut.h>
-#else
-#  include <GL/glut.h>
-#endif
-
-#include <fstream>
-#include <cassert>
 #include <sstream>
+#include <GLUT/glut.h>
+#include <openGL/glu.h>
 #include <cstring>
-#include <cmath>
-#include <algorithm>    // std::max
-#include "Vector2D.h"
-
-#define pi 3.14159265358
 
 using namespace std;
 
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
+// depth values read in from the ppm header.
 // =============================================================================
-int width, height;
+int width, height, maxcolor;
+
+// =============================================================================
+// You need 1 byte to store the information in an 8-bit color channel, and an
+// unsigned char provides 1 byte. Use an unsigned char array to store the rgb
+// pixmap data. glDrawPixels() requires an array of bytes in the order red,
+// green, blue, red, green, blue, etc... , but you can also use the order red,
+// green, blue, alpha, red, green, blue, alpha, etc... , if you want to give
+// each pixel an alpha channel. Just make sure to change GL_RGB to GL_RGBA in
+// glDrawPixels(); and GLUT_RGB to GLUT_RGBA in glutInitDisplayMode();
+// =============================================================================
 unsigned char *pixmap;
-int Num_Samples;
-
-double theta(double a){
-    if (a<0) {
-        return 0;
-    }else
-        return 1;
-    
-}
-int sgn(double a){
-    if (a<0) {
-        return -1;
-    }else if(a=0){
-        return 0;
-    }else
-        return 1;
-}
-
-//vertices, lines, and normals
-Vector2D p0(300, 370);
-Vector2D p1(190, 260);
-Vector2D p2(230, 170);
-Vector2D p3(404, 180);
-Vector2D p4(390, 330);
-
-Vector2D findNormals(Vector2D &v1, Vector2D &v2)
-{
-    Vector2D v12 = v1-v2;
-
-    v12.Rotate(-90);
-    v12.Normalize();
-    return v12;
-}
 
 // =============================================================================
-// setPixels()
-//
-// This function stores the RGB values of each*pixel to "pixmap."
-// Then, "glutDisplayFunc" below will use pixmap to display the pixel colors.
+// You'll need to modify these functions to read and write pixmaps from ppm
+// files. Here writePPM() does nothing and readPPM() just creates an empty
+// white pixmap. Remember when you modify these function that OpenGL needs a
+// pixmap with row positions reversed (going from bottom to top instead of
+// from top to bottom). You may want to modify these functions' interfaces to
+// to take arguments like char or FILE pointers so you can pass in filenames
+// or open file streams.
 // =============================================================================
-void setConvex(float* cI, float* cO)
+int readPGM (char * filename);
+int readPPM (char * filename);
+void writePPM(char* outfile, int A);
+void writePGM(char* outfile, int A);
+
+int readPPM(char * filename, int & isppm)
 {
     
-    Vector2D p01 = findNormals(p1,p0);
-    Vector2D p12 = findNormals(p2,p1);
-    Vector2D p23 = findNormals(p3,p2);
-    Vector2D p34 = findNormals(p4,p3);
-    Vector2D p40 = findNormals(p0,p4);
+    width = 100; height = 100; // These values must be initialized for the OpenGL
     
-
-    for(int y = 0; y < height ; y++) {
-        for(int x = 0; x < width; x++) {
-            int i = (y * width + x) * 3;
-            
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i=0;i<Num_Samples;i++){
-                for(float j=0;j<Num_Samples;j++){
-                    float x_sample=(rx+i)/Num_Samples;
-                    float y_sample=(ry+j)/Num_Samples;
-                    Vector2D p(x+x_sample,y+y_sample);
-                    
-                    
-                    if (p01.DotProduct(p-p0) <= 0 && p12.DotProduct(p-p1) <= 0 && p23.DotProduct(p-p2) <= 0 && p34.DotProduct(p-p3) <= 0
-                        && p40.DotProduct(p-p4) <= 0) {
-                        
-                        color[0] += cI[0];
-                        color[1] += cI[1];
-                        color[2] += cI[2];
-                    }else {
-                        color[0] += cO[0];
-                        color[1] += cO[1];
-                        color[2] += cO[2];
-                    }
-                }
-            }
-            pixmap[i++] = color[0] / powf(Num_Samples,2);
-            pixmap[i++] = color[1] / powf(Num_Samples,2);
-            pixmap[i] = color[2] / powf(Num_Samples,2);
-        }
-    }
-}
-
-void setStar(float* cI, float* cO)
-{
-    Vector2D p02 = findNormals(p2,p0);
-    Vector2D p13 = findNormals(p3,p1);
-    Vector2D p24 = findNormals(p4,p2);
-    Vector2D p30 = findNormals(p0,p3);
-    Vector2D p41 = findNormals(p1,p4);
+    int A = 0;  //ascii flag
     
-    for(int y = 0; y < height ; y++) {
-        for(int x = 0; x < width; x++) {
-            int i = (y * width + x) * 3;
+    FILE * imageFile;
+    imageFile = fopen (filename,"r");
+    
+    if (imageFile == NULL) {
+        perror ("Error opening file");
+    }
+    
+    char a[80];
+    fscanf(imageFile,"%s",a);
+    while (a[0] == '#') {
+        char comments[100];
+        fgets(comments,100,imageFile);
+        fscanf(imageFile,"%s",a);
+    }
+    
+    //check magic number
+    if ((strcmp(a,"P3") != 0) && (strcmp(a, "P6") != 0)) {
+        while (a[0] == '#') {
+            char comments[100];
+            fgets(comments,100,imageFile);
+            fscanf(imageFile,"%s",a);
+        }
+        cout<<"Its not ppm file"<<endl;
+        isppm = 0;
+        readPGM(filename);
+    }else {
+        cout<<"Its ppm file"<<endl;
+        isppm = 1;
+        if (strcmp(a, "P3") == 0) {
+            A = 1;
+        }
+        fscanf(imageFile,"%s",a);
+        while (a[0] == '#') {
+            char comments[100];
+            fgets(comments,100,imageFile);
+            fscanf(imageFile,"%s",a);
+        }
+        width = atoi(a);
+        fscanf(imageFile, "%d %d", &height, &maxcolor);
+        
+        //grab the last newline character after the maxcolor byte:
+        fgetc(imageFile);
+        
+        pixmap = new unsigned char[width * height * 3];
+        int y, x, pixel;
+        
+        if (A == 0) {
+            for(y = height - 1; y >= 0; y--) {
+                for(x = 0; x < width; x++) {
+                    
+                    pixel = ((y) * width + x) * 3;
+                    pixmap[pixel] = fgetc(imageFile);
+                    pixel++;
+                    pixmap[pixel] = fgetc(imageFile);
+                    pixel++;
+                    pixmap[pixel] = fgetc(imageFile);
+                }
+            }
+        }else {
+            int buffer[width * height *3];
+            int i;
+            for (i = 0; i < width*height*3; i++) {
+                fscanf(imageFile,"%d",&buffer[i]);
+            }
             
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i=0;i<Num_Samples;i++){
-                for(float j=0;j<Num_Samples;j++){
-                    float x_sample=(rx+i)/Num_Samples;
-                    float y_sample=(ry+j)/Num_Samples;
-                    int flag = 0;
-                    Vector2D p(x+x_sample,y+y_sample);
-                    
-                    if (p02.DotProduct(p-p0) <= 0)
-                        flag +=1;
-                    if (p13.DotProduct(p-p1) <= 0)
-                        flag +=1;
-                    if (p24.DotProduct(p-p2) <= 0)
-                        flag +=1;
-                    if (p30.DotProduct(p-p3) <= 0)
-                        flag +=1;
-                    if (p41.DotProduct(p-p4) <= 0)
-                        flag +=1;
-                    
-                    if (flag >= 4) {
-                        color[0] += cI[0];
-                        color[1] += cI[1];
-                        color[2] += cI[2];
-                    }else {
-                        color[0] += cO[0];
-                        color[1] += cO[1];
-                        color[2] += cO[2];
-                    }
+            i = 0;
+            for(y = height - 1; y >= 0; y--) {
+                for(x = 0; x < width; x++) {
+                    pixel = ((y) * width + x) * 3;
+                    pixmap[pixel] = buffer[i];
+                    pixel++;
+                    i++;
+                    pixmap[pixel] = buffer[i];
+                    pixel++;
+                    i++;
+                    pixmap[pixel] = buffer[i];
+                    i++;
+
                 }
             }
-            pixmap[i++] = color[0] / powf(Num_Samples,2);
-            pixmap[i++] = color[1] / powf(Num_Samples,2);
-            pixmap[i] = color[2] / powf(Num_Samples,2);
             
         }
+        
     }
+    fclose(imageFile);
+    return A;
 }
 
-void setFunction(float* cI, float* cO)
+int readPGM (char * filename)
 {
-    for(int y = 0; y < height ; y++) {
-        for(int x = 0; x < width; x++) {
-            int i = (y * width + x) * 3;
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i=0;i<Num_Samples;i++){
-                for(float j=0;j<Num_Samples;j++){
-                    float x_sample=(rx+i)/Num_Samples;
-                    float y_sample=(ry+j)/Num_Samples;
-                    Vector2D p(x+x_sample,y+y_sample);
+    int A = 0;  //ascii flag
+    
+    FILE * imageFile;
+    imageFile = fopen (filename,"r");
+    
+    if (imageFile == NULL) {
+        perror ("Error opening file");
+    }
+    
+    char a[80];
+    fscanf(imageFile,"%s",a);
+    while (a[0] == '#') {
+        char comments[100];
+        fgets(comments,100,imageFile);
+        fscanf(imageFile,"%s",a);
+    }
+    
+    //check magic number
+    if ((strcmp(a,"P2") != 0) && (strcmp(a, "P5") != 0)) {
+        while (a[0] == '#') {
+            char comments[100];
+            fgets(comments,100,imageFile);
+            fscanf(imageFile,"%s",a);
+        }
+        cout<<"Its not pgm file"<<endl;
+    }else {
+        cout<<"Its pgm file"<<endl;
+        if (strcmp(a, "P2") == 0) {
+            A = 1;
+        }
+        fscanf(imageFile,"%s",a);
+        while (a[0] == '#') {
+            char comments[100];
+            fgets(comments,100,imageFile);
+            fscanf(imageFile,"%s",a);
+        }
+        width = atoi(a);
+        fscanf(imageFile, "%d %d", &height, &maxcolor);
+        
+        //grab the last newline character after the maxcolor byte:
+        fgetc(imageFile);
+        
+        pixmap = new unsigned char[width * height * 3];
+        int y, x, pixel;
+        
+        if (A == 0) {
+            for(y = height - 1; y >= 0; y--) {
+                for(x = 0; x < width; x++) {
                     
-                    if ((p.y-height/2) - exp(-(float)p.x/(width/6))*height/4*sinf(2*pi*p.x/(width/6)) < 0) {
-                        color[0] += cI[0];
-                        color[1] += cI[1];
-                        color[2] += cI[2];
-                    }else {
-                        color[0] += cO[0];
-                        color[1] += cO[1];
-                        color[2] += cO[2];
-                    }
+                    pixel = ((y) * width + x) * 3;
+                    unsigned char temp;
+                    temp = fgetc(imageFile);
+                    pixmap[pixel] = temp;
+                    pixel++;
+                    pixmap[pixel] = temp;
+                    pixel++;
+                    pixmap[pixel] = temp;
                 }
             }
-            pixmap[i++] = color[0] / powf(Num_Samples,2);
-            pixmap[i++] = color[1] / powf(Num_Samples,2);
-            pixmap[i] = color[2] / powf(Num_Samples,2);
-        }
-    }
-}
-
-void setBlobby(float* cI, float* cO)
-{
-    for(int y = 0; y < height ; y++) {
-        for(int x = 0; x < width; x++) {
-            int i = (y * width + x) * 3;
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i=0;i<Num_Samples;i++){
-                for(float j=0;j<Num_Samples;j++){
-                    float x_sample=(rx+i)/Num_Samples;
-                    float y_sample=(ry+j)/Num_Samples;
-                    Vector2D p(x+x_sample,y+y_sample);
-                    
-                    float F0 = (powf((float)(p.x-p0.x),2) + powf((float)(p.y-p0.y),2)) - powf(height/4,2);
-                    float F1 = (powf((float)(p.x-p1.x),2) + powf((float)(p.y-p1.y),2)) - powf(height/8,2);
-                    float F2 = (powf((float)(p.x-p2.x),2) + powf((float)(p.y-p2.y),2)) - powf(height/4,2);
-                    float F3 = (powf((float)(p.x-p3.x),2) + powf((float)(p.y-p3.y),2)) - powf(height/6,2);
-                    float F4 = (powf((float)(p.x-p4.x),2) + powf((float)(p.y-p4.y),2)) - powf(height/10,2);
-                    float a = 1000;
-                    
-                    if ((-1/a)*log(exp(-1/a*F0)+exp(-1/a*F1)+exp(-1/a*F2)+exp(-1/a*F3)+exp(-1/a*F4)) < 0) {
-                        color[0] += cI[0];
-                        color[1] += cI[1];
-                        color[2] += cI[2];
-                    }else {
-                        color[0] += cO[0];
-                        color[1] += cO[1];
-                        color[2] += cO[2];
-                    }
-                }
+        }else {
+            int buffer[width * height];
+            int i;
+            for (i = 0; i < width*height; i++) {
+                fscanf(imageFile,"%d",&buffer[i]);
             }
-            pixmap[i++] = color[0] / powf(Num_Samples,2);
-            pixmap[i++] = color[1] / powf(Num_Samples,2);
-            pixmap[i] = color[2] / powf(Num_Samples,2);
-        }
-    }
-}
-
-void setShaded(float* cI, float* cO, float* cS)
-{
-    for(int y = 0; y < height ; y++) {
-        for(int x = 0; x < width; x++) {
-            int i = (y * width + x) * 3;
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i=0;i<Num_Samples;i++){
-                for(float j=0;j<Num_Samples;j++){
-                    float x_sample=(rx+i)/Num_Samples;
-                    float y_sample=(ry+j)/Num_Samples;
-                    Vector2D p(x+x_sample,y+y_sample);
-
-
-            if (powf((float)(p.x-width/2),2) + powf((float)(p.y-height/2),2) - powf(height/4,2) < 0) {
-                float shadeR = powf(height/5,2);
-                float shade = (powf((float)(p.x-width/2+30),2) + powf((float)(p.y-height/2-30),2)) - shadeR;
-                if (shade <= 0) {
-                    color[0] += fabsf(shade)/shadeR *cS[0] + (1 - fabsf(shade)/shadeR) * cI[0];
-                    color[1] += fabsf(shade)/shadeR *cS[1] + (1 - fabsf(shade)/shadeR) * cI[1];
-                    color[2] += fabsf(shade)/shadeR *cS[2] + (1- fabsf(shade)/shadeR) * cI[2];
-                }else {
-                    color[0] += cI[0];
-                    color[1] += cI[1];
-                    color[2] += cI[2];
-                }
             
-            }else {
-                float shade = p.x/2-p.y-height;
-                float shadeR = height*2;
-                //printf("%f\n",shade/shadeR);
-                if (shade <= 0) {
-                    color[0] += fabsf(shade)/shadeR *cI[0] + (1 - fabsf(shade)/shadeR) * cO[0];
-                    color[1] += fabsf(shade)/shadeR *cI[1] + (1 - fabsf(shade)/shadeR) * cO[1];
-                    color[2] += fabsf(shade)/shadeR *cI[2] + (1- fabsf(shade)/shadeR) * cO[2];
-                }else {
-                    color[0] += cO[0];
-                    color[1] += cO[1];
-                    color[2] += cO[2];
+            i = 0;
+            for(y = height - 1; y >= 0; y--) {
+                for(x = 0; x < width; x++) {
+                    pixel = ((y) * width + x) * 3;
+                    pixmap[pixel] = buffer[i];
+                    pixel++;
+                    pixmap[pixel] = buffer[i];
+                    pixel++;
+                    pixmap[pixel] = buffer[i];
+                    i++;
+                    
                 }
             }
-                }
+            
+        }
+        
+    }
+    fclose(imageFile);
+    return A;
+
+    
+}
+void writePPM(char* outfile, int A)
+{
+    FILE *out;
+    out = fopen (outfile,"w");
+    
+    if (out == NULL) {
+        perror ("Error opening file");
+    }
+    
+    if (A == 0) {
+        fprintf(out, "P6\n");
+        fprintf(out, "%d %d\n", width, height);
+        fprintf(out, "255\n");
+        
+        int y, x, pixel;
+        for(y = height - 1; y >= 0; y--) {
+            for(x = 0; x < width; x++) {
+                pixel = ((y) * width + x) * 3;
+                fputc(pixmap[pixel],out);
+                pixel++;
+                fputc(pixmap[pixel],out);
+                pixel++;
+                fputc(pixmap[pixel],out);
+                
             }
-            pixmap[i++] = color[0] / powf(Num_Samples,2);
-            pixmap[i++] = color[1] / powf(Num_Samples,2);
-            pixmap[i] = color[2] / powf(Num_Samples,2);
+        }
+    }else{
+        fprintf(out, "P3\n");
+        fprintf(out, "%d %d\n", width, height);
+        fprintf(out, "255\n");
+        
+        int y, x, pixel;
+        for(y = height - 1; y >= 0; y--) {
+            for(x = 0; x < width; x++) {
+                pixel = ((y) * width + x) * 3;
+                fprintf(out, "%d ",(int)pixmap[pixel]);
+                pixel++;
+                fprintf(out, "%d ",(int)pixmap[pixel]);
+                pixel++;
+                fprintf(out, "%d ",(int)pixmap[pixel]);
+            }
         }
     }
+    fclose(out);
 }
 
-
-
-void draw(char * select, float* cI, float* cO, float* cS)
+void writePGM(char* outfile, int A)
 {
-    switch (select[0]) {
-        case 'c':
-            setConvex(cI, cO);
-            break;
-        case 's':
-            if (select[1] == 't') {
-                setStar(cI, cO);
-            }else {
-                setShaded(cI, cO, cS);
-            }
-            break;
-        case 'f':
-            setFunction(cI, cO);
-            break;
-        case 'b':
-            setBlobby(cI, cO);
-            break;
-
-        default:
-            break;
+    FILE *out;
+    out = fopen (outfile,"w");
+    
+    if (out == NULL) {
+        perror ("Error opening file");
     }
+    
+    if (A == 0) {
+        fprintf(out, "P5\n");
+        fprintf(out, "%d %d\n", width, height);
+        fprintf(out, "255\n");
+        
+        int y, x, pixel;
+        for(y = height - 1; y >= 0; y--) {
+            for(x = 0; x < width; x++) {
+                pixel = ((y) * width + x) * 3;
+                fputc(pixmap[pixel],out);
+                pixel++;
+                //fputc(pixmap[pixel],out);
+                pixel++;
+                //fputc(pixmap[pixel],out);
+                
+            }
+        }
+    }else{
+        fprintf(out, "P2\n");
+        fprintf(out, "%d %d\n", width, height);
+        fprintf(out, "255\n");
+        
+        int y, x, pixel;
+        for(y = height - 1; y >= 0; y--) {
+            for(x = 0; x < width; x++) {
+                pixel = ((y) * width + x) * 3;
+                fprintf(out, "%d ",(int)pixmap[pixel]);
+                pixel++;
+                //fprintf(out, "%d ",(int)pixmap[pixel]);
+                pixel++;
+                //fprintf(out, "%d ",(int)pixmap[pixel]);
+            }
+        }
+    }
+    fclose(out);
+
 }
-
-
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
 //
@@ -335,95 +368,155 @@ void draw(char * select, float* cI, float* cO, float* cS)
 // in main(), to perform more sophisticated display or GUI behavior. This code
 // will service the bare minimum display needs for most assignments.
 // =============================================================================
-void windowResize(int w, int h)
+static void resize(int w, int h)
 {
-    glViewport (0, 0, w, h);
+    glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    if(w<=h)
-        glOrtho(0,w,0,w*(GLfloat)h/(GLfloat)w,-10.0,10.0);
-    else
-        glOrtho(0,w*(GLfloat)w/(GLfloat)h,0,h,-10.0,10.0);
+    glOrtho(0,(w/2),0,(h/2),0,1);
     glMatrixMode(GL_MODELVIEW);
-    //printf("resize %d %d\n",w,h);
-    //glOrtho(0,(w/2),0,(h/2),0,1);
-
 }
-void windowDisplay(void)
+static void display(void)
 {
     glClear(GL_COLOR_BUFFER_BIT);
-    //glPixelZoom(2,2);
     glRasterPos2i(0,0);
     glPixelStorei(GL_UNPACK_ALIGNMENT,1);
     glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, pixmap);
     glFlush();
 }
-void processMouse(int button, int state, int x, int y)
+static void processMouse(int button, int state, int x, int y)
 {
-//    if(state == GLUT_UP)
-//        exit(0);               // Exit on mouse click.
+    if(state == GLUT_UP)
+        exit(0);               // Exit on mouse click.
 }
-
-void init(void)
+static void init(void)
 {
     glClearColor(1,1,1,1); // Set background color.
-
 }
-
 
 // =============================================================================
 // main() Program Entry
 // =============================================================================
 int main(int argc, char *argv[])
 {
+    // Check command line arguments and read in the filename, then call readPPM().
+    char * filename;
+    char *outFile;
+    int Aflag;  //ASCII flag
+    int isppm;  //ppm flag
     
-    char select[] = "";
-    int input;
-    float colorOut[3] = {0xBF,0xBF,0xFF};
-    float colorIn[3] = {0xFF,0X8F,0X8F};
-    float colorShade[3] = {0xFF,0XFF,0XFF};
-
-    //initialize the global variables
-    width = 640;
-    height = 480;
-    pixmap = new unsigned char[width * height * 3];
-    Num_Samples = 10;
-
-    input = argc;
-    if (input != 2)
-        strcpy(select,"");
-    else
-        strcpy(select,argv[1]);
-
-    while (input != 2 || (strcmp(select, "convex") != 0 && strcmp(select, "function") != 0
-                          && strcmp(select, "star") != 0 && strcmp(select, "blobby") != 0
-                          && strcmp(select, "circle") != 0 && strcmp(select, "shaded") != 0)) {
-        printf("ERROR: Invalid input.\nPlease choose from: convex/star/function/blobby/shaded\n");
-        gets(select);
-        if(strstr(select," ") == 0) 
-            input = 2;
-        else
-            input = 0;
+    filename = argv[1];
+    Aflag = readPPM(filename,isppm);
+    
+    // Check command line arguments and read in the output filename if present.
+    if (argc == 3) {
+        outFile = argv[2];
+        if (isppm = 1) {
+            writePPM(outFile, Aflag);
+        }else
+            writePGM(outFile, Aflag);
+        
     }
     
-    draw(select,colorIn, colorOut, colorShade);
-    //setPixels();
-    
-    
-    // OpenGL Commands:
-    // Once "glutMainLoop" is executed, the program loops indefinitely to all
-    // glut functions.
+    // OpenGL commands
     glutInit(&argc, argv);
     glutInitWindowPosition(100, 100); // Where the window will display on-screen.
     glutInitWindowSize(width, height);
     glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-    glutCreateWindow("Project 2");
+    glutCreateWindow("ppmview");
     init();
-    glutDisplayFunc(windowDisplay);
-    glutReshapeFunc(windowResize);
+    glutReshapeFunc(resize);
+    glutDisplayFunc(display);
     glutMouseFunc(processMouse);
     glutMainLoop();
     
-    return 0; //This line never gets reached. We use it because "main" is type int.
+    
+    return 0;
 }
 
+// =============================================================================
+// GENERAL RECOMMENDATIONS AND SOLUTIONS TO COMMON PROBLEMS
+//
+// Use FILE, fopen, fclose, fscanf, fprintf, fgetc, and fputc to construct
+// the readPPM and writePPM functions. The isspace() function from ctype.h
+// is also very useful. You can learn about basic C file I/O issues in the
+// excellent Wikipedia entry here:
+//
+// http://en.wikipedia.org/wiki/C_file_input/output
+//
+// Pay special attention to the section on the "The EOF Pitfall". Values
+// returned from fgetc should be stored in an int, not a char.
+//
+// You can make more sophisticated versions of these functions using the C++
+// <fstream> library and cin/cout. This is probably overkill for the ppm
+// utilities you're creating in this class, unless you are already comfortable
+// with the C++ way of doing things.
+//
+// If you stick with a more C-style approach, I strongly recommend you use
+// fgetc and fputc to test for the P6 'magic number' bytes and to skip over
+// any comment lines. When you've finished skipping over comments, scan-in
+// the image width, height and color depth using this line:
+//
+//      fscanf(imagefile, "%d %d %d", &width, &height, &maxcolor);
+//
+// Then use this line to grab the last newline character after the maxcolor byte:
+//
+//      fgetc(imagefile);
+//
+// after which I recommend using fgetc to read in color channel byte values.
+//
+// This method is proven and works well. You should adhere to it in your own
+// program unless you thoroughly test your own alternate methods.
+//
+//
+// *** IMPORTANT ***
+//
+// DON'T DO THIS:
+//
+//      fscanf(imagefile, "%d %d\n %d\n", &width, &height, &maxcolor);
+//
+// OR THIS:
+//
+//      fscanf(imagefile, "%d %d %d\n", &width, &height, &maxcolor);
+//
+// OR THIS:
+//
+//      fscanf(imagefile, "\n", &ch);
+//
+// to scan in the last newline after the maxcolor byte.
+//
+// fscanf is not required to only read in one char byte for each explicit
+// newline scan. This is because C binary I/O allows a newline character to
+// sometimes be output as two characters, depending on the target output file
+// type and other system conventions, and likewise be identified during scan in
+// from two char bytes of an input file. fscanf may scan the newline and also
+// the following first red color channel byte, if the hex value for that red
+// color channel byte corresponds to a character that fscanf interprets as part
+// of the newline. This definitely happens if the first red color channel has
+// the hex value 0B (which is the hex value for a vertical tab character), but
+// fscanf may be vulnerable to other newline-trailing hex values as well.
+// If you must use fscanf to read in the last newline, you need to instead
+// explicitely instruct fscanf to read in a single char:
+//
+// fscanf(imagefile, "%c", &ch);
+//
+// But fgetc(imagefile) will work fine too.
+//
+// Don't attempt to search for and skip over white space or comments lines after
+// the newline that follows the maxcolor byte - there should never be any such
+// chunks of data in a valid ppm file. At best you will add useless code to
+// your project; at worst you will generate the same problem as the fscanf issue
+// above - you may accidentally scan the first red color channel byte, and
+// possibly following bytes as well, if the hex values for these bytes
+// correspond to whitespace or comment line characters that you're skipping.
+//
+//
+// For image output I recommend you use fprintf to write out the ppm header
+// data:
+//
+//     fprintf(outfile, "P6\n");
+//     fprintf(outfile, "%d %d\n", width, height);
+//     fprintf(outfile, "255\n");
+//
+// and then fputc to output color channel byte values.
+// =============================================================================
