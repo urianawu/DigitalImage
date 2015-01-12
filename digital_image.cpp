@@ -32,7 +32,6 @@
 
 #include "ppmview.h"
 #include "Vector2D.h"
-#include "NTmatrix.h"
 
 #define PI 3.1415
 
@@ -42,12 +41,9 @@ using namespace std;
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
 
-int inputwidth, inputheight, level, outputwidth, outputheight;
+int inputwidth, inputheight, level, outputwidth, outputheight, outlevel;
 unsigned char *in, *out;
 
-NTmatrix final(3, 3, 'I');  //final transformation matrix initialized as 3*3 identity matrix
-Vector2D lb, rb, lt, rt;    //corners for output image
-int Samples = 3;  //samples
 
 GLint mainWindow, originalWindow;  //windows
 
@@ -62,6 +58,7 @@ void setPixels(char *infile)
     ppmview input;
     
     input.readPPM(infile);
+    //input.readPGM(infile);
     inputwidth = input.width;
     inputheight = input.height;
     level = input.maxcolor;
@@ -71,253 +68,222 @@ void setPixels(char *infile)
     in = input.pixmap;
     
 }
-
-
-void transform(char operation[], float p1, float p2 )
+void initializeOutput()
 {
-    NTmatrix temp(3, 3);
-    
-    
-        switch (operation[0]) {
-            case 'r':
-            {
-                double trans[9] = {cosf(p1 * PI/180), sinf(p1* PI/180), 0, -sinf(p1* PI/180), cosf(p1* PI/180), 0, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-            case 's':
-            {
-                double trans[9] = {p1, 0, 0, 0, p2, 0, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-            case 't':
-            {
-                double trans[9] = {1, 0, 0, 0, 1, 0, p1, p2, 1};
-                temp.assign(trans);
-                outputheight+=(int)p2*2;
-                outputwidth+=(int)p1*2;
-                break;
-            }
-            case 'f':
-            {
-                int flipx = 1;
-                int flipy = 1;
-                if (p1 == 1) {
-                    flipx = -1;
-                }
-                if (p2 == 1) {
-                    flipy = -1;
-                }
-                double trans[9] = {(double)flipx, 0, 0, 0, (double)flipy, 0, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-            case 'h':
-            {
-                double trans[9] = {1, p2, 0, p1, 1, 0, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-            case 'p':
-            {
-                double trans[9] = {1, 0, p1, 0, 1, p2, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-            case 'o':
-            {
-                double trans[9] = {0.6,0.2,0,0.4,0.5,0,10,30,1};
-                temp.assign(trans);
-                break;
-            }
-            default:
-            {
-                double trans[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-                temp.assign(trans);
-                break;
-            }
-        }
-    //temp.printMat();
-    final = temp * final;
-    //final.printMat();
-
-}
-
-void transformCorner()
-{
-    NTmatrix c00(3,1), c10(3,1), c01(3,1), c11(3,1);
-    double temp[3] = {-(double)inputwidth/2, -(double)inputheight/2, 1};
-    c00.assign(temp);
-    temp[0] = inputwidth/2;
-    c10.assign(temp);
-    temp[0] = -inputwidth/2;
-    temp[1] = inputheight/2;
-    c01.assign(temp);
-    temp[0] = inputwidth/2;
-    c11.assign(temp);
-    
-    NTmatrix new00(3,1), new10(3,1), new01(3,1), new11(3,1);
-    new00 = final * c00;
-    new10 = final * c10;
-    new01 = final * c01;
-    new11 = final * c11;
-
-    lb.Set(new00.vect[0]/new00.vect[2]+inputwidth/2,new00.vect[1]/new00.vect[2]+inputheight/2);
-    rb.Set(new10.vect[0]/new00.vect[2]+inputwidth/2,new10.vect[1]/new00.vect[2]+inputheight/2);
-    lt.Set(new01.vect[0]/new00.vect[2]+inputwidth/2,new01.vect[1]/new00.vect[2]+inputheight/2);
-    rt.Set(new11.vect[0]/new00.vect[2]+inputwidth/2,new11.vect[1]/new00.vect[2]+inputheight/2);
-
-}
-
-void initializeOutput(){
-    //printf("%f %f %f %f\n %f %f %f %f\n",lt.y,rt.y,lb.y,rb.y,lt.x,rt.x,lb.x,rb.x);
-    outputheight += max(max(max(lt.y,rt.y),rb.y),lb.y);
-    outputwidth += max(max(max(lt.x,rt.x),rb.x),lb.x);
-    int minheight = min(min(min(lt.y,rt.y),rb.y),lb.y);
-    int minwidth = min(min(min(lt.x,rt.x),rb.x),lb.x);
-    if (minheight < 0) {
-        outputheight -= minheight;
-    }
-    if (minwidth < 0) {
-        outputwidth -= minwidth;
-    }
-    
+    outputwidth = inputwidth;
+    outputheight = inputheight;
     out = new unsigned char[outputwidth * outputheight * 3];
-    for (int i = 0; i< outputwidth * outputheight *3; i++) {
-        out[i] = 0;
+    for (int i = 0; i < outputwidth * outputheight * 3; i++) {
+        out[i] = in[i];
     }
-
+}
+int find_closest_palette_color(int oldpixel)
+{
+    int newpixel;
+    int step = level / outlevel;
+    newpixel = round(oldpixel*1.0/255*outlevel) * step;
+    return newpixel;
 }
 
-void InverseWarping()
+
+/**
+ -------Algorithm--------
+ for each y from top to bottom
+ for each x from left to right
+ oldpixel  := pixel[x][y]
+ newpixel  := find_closest_palette_color(oldpixel)
+ pixel[x][y]  := newpixel
+ quant_error  := oldpixel - newpixel
+ pixel[x+1][y  ] := pixel[x+1][y  ] + 7/16 * quant_error
+ pixel[x-1][y+1] := pixel[x-1][y+1] + 3/16 * quant_error
+ pixel[x  ][y+1] := pixel[x  ][y+1] + 5/16 * quant_error
+ pixel[x+1][y+1] := pixel[x+1][y+1] + 1/16 * quant_error
+ */
+void FSErrorDiffusion()
 {
-    NTmatrix invMatrix;
     
-    invMatrix = final.inverse();
-    //final.printMat();
-    //invMatrix.printMat();
-    
-    for(int y = 0; y < outputheight ; y++) {
-        for(int x = 0; x < outputwidth; x++) {
-            int pix = (y * outputwidth + x) * 3;
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i = 0;i<Samples;i++){
-                for(float j = 0;j<Samples;j++){
-                    float x_sample=(rx+i)/Samples;
-                    float y_sample=(ry+j)/Samples;
-                    Vector2D p(x+x_sample,y+y_sample);
+    for (int y = outputheight-1; y >= 0; y--) {
+        for (int x = 0; x < outputwidth; x++) {
+            int pixel = (y * outputwidth + x) * 3;
+            for (int i = 0; i < 3; i++) {
+                
+                
+                int oldpixel = out[pixel + i];
+                int newpixel = find_closest_palette_color(oldpixel);
+                out[pixel + i] = newpixel;
+                int quant_error = oldpixel - newpixel;
+                int temp = 0;
+                
+                if (x < outputwidth - 1) {
+                    temp = out[(y * outputwidth + x + 1) * 3 + i] + 7/16 * (float)quant_error;
+                    if (temp >= 0 && temp <= 255) {
+                        out[(y * outputwidth + x + 1) * 3 + i] = temp;
+                    }else if (temp < 0 ) {
+                        out[(y * outputwidth + x + 1) * 3 + i] = 0;
+                    }else {
+                        out[(y * outputwidth + x + 1) * 3 + i] = 255;
+                    }
+                }
+                
+                if (y > 1 && x > 1) {
                     
-                    NTmatrix outAxis(3,1);
-                    NTmatrix originAxis(3,1);
-                    int inputx, inputy;
-                    double axis[3] = {(double)p.x - outputwidth/2,(double)p.y - outputheight/2,1};
-                    outAxis.assign(axis);
-                    originAxis = invMatrix * outAxis;
-                    inputx = (int)(originAxis.vect[0]/originAxis.vect[2] + inputwidth/2);
-                    inputy = (int)(originAxis.vect[1]/originAxis.vect[2] + inputheight/2);
+                    temp = out[((y - 1) * outputwidth + x - 1) * 3 + i] + 3/16 * (float)quant_error;
+                    if (temp >= 0 && temp <= 255) {
+                        out[((y - 1) * outputwidth + x - 1) * 3 + i] = temp;
+                    }else if (temp < 0 ) {
+                        out[((y - 1) * outputwidth + x - 1) * 3 + i] = 0;
+                    }else {
+                        out[((y - 1) * outputwidth + x - 1) * 3 + i] = 255;
+                    }
+                }
+                
+                if (y > 1) {
                     
-                    int inputi = (inputy * inputwidth + inputx) * 3;
-                    if (inputx >= 0 && inputx < inputwidth) {
-                        if (inputy >= 0 && inputy < inputheight) {
-                            color[0] += in[inputi++];
-                            color[1] += in[inputi++];
-                            color[2] += in[inputi];
-                        }
+                    temp = out[((y - 1) * outputwidth + x) * 3 + i] + 5/16 * (float)quant_error;
+                    if (temp >= 0 && temp <= 255) {
+                        out[((y - 1) * outputwidth + x) * 3 + i] = temp;
+                    }else if (temp < 0 ) {
+                        out[((y - 1) * outputwidth + x) * 3 + i] = 0;
+                    }else {
+                        out[((y - 1) * outputwidth + x) * 3 + i] = 255;
+                    }
+                }
+                
+                if (y > 1 && x < outputwidth - 1) {
+                    
+                    temp = out[((y - 1) * outputwidth + x + 1) * 3 + i] + 1/16 * (float)quant_error;
+                    if (temp >= 0 && temp <= 255) {
+                        out[((y - 1) * outputwidth + x + 1) * 3 + i] = temp;
+                    }else if (temp < 0 ) {
+                        out[((y - 1) * outputwidth + x + 1) * 3 + i] = 0;
+                    }else {
+                        out[((y - 1) * outputwidth + x + 1) * 3 + i] = 255;
                     }
                 }
             }
+        }
+    }
+ 
+    
+}
+
+
+/**
+ ------Algorithm------
+ for each y
+ for each x
+ oldpixel := pixel[x][y] + threshold_map_4x4[x mod 4][y mod 4]
+ newpixel := find_closest_palette_color(oldpixel)
+ pixel[x][y] := newpixel
+ */
+void OrderedDither()
+{
+    int threshold_map[8][8] = {{1,49,13,61,4,52,16,64},{33,17,45,29,36,20,48,32},{9,57,5,53,12,60,8,56},{41,25,37,21,44,28,40,24},
+                               {3,51,15,63,2,50,14,62},{35,19,47,31,34,18,46,30},{11,59,7,55,10,58,6,54},{43,27,39,23,42,26,38,22}};
+    
+    //int threshold_map4[4][4] = {{1,9,3,11},{13,5,15,7},{4,12,2,10},{16,8,14,6}};
+    for (int y = 0; y < outputheight; y++) {
+        for (int x = 0; x < outputwidth; x++) {
+            int pixel = (y * outputwidth + x) * 3;
+            for (int i = 0; i < 3; i++) {
+                
             
-            out[pix++] = color[0] / powf(Samples,2);
-            out[pix++] = color[1] / powf(Samples,2);
-            out[pix] = color[2] / powf(Samples,2);
+            int oldpixel = out[pixel+i] + (1.0/65 * (float)threshold_map[x % 8][y % 8]) * level/outlevel;
+            if (oldpixel < 0 ) {
+                oldpixel = 0;
+            }
+            if (oldpixel > 255) {
+                oldpixel = 255;
+            }
+            
+            int newpixel = find_closest_palette_color(oldpixel);
+            out[pixel+i] = newpixel;
+            }
         }
     }
 }
 
-void bilinearWarping()
+void RandNoiseDither()
 {
-    float x0 = lb.x/outputwidth;
-    float x1 = lt.x/outputwidth;
-    float x2 = rt.x/outputwidth;
-    float x3 = rb.x/outputwidth;
-    
-    float y0 = lb.y/outputheight;
-    float y1 = lt.y/outputheight;
-    float y2 = rt.y/outputheight;
-    float y3 = rb.y/outputheight;
-    
-    float a0 =x0;
-    float a1 =x3-x0;
-    float a2 =x1-x0;
-    float a3 =x2-x1-x3-x0;
-    float b0 =y0;
-    float b1 =y3-y0;
-    float b2 =y1-y0;
-    float b3 =y2-y1-y3-y0;
-    
-    for(int y = 0; y < outputheight ; y++) {
-        for(int x = 0; x < outputwidth; x++) {
-            int pix = (y * outputwidth + x) * 3;
-            float color[3] = {0.0, 0.0, 0.0};
-            float rx=rand()/RAND_MAX;
-            float ry=rand()/RAND_MAX;
-            for(float i = 0;i<Samples;i++){
-                for(float j = 0;j<Samples;j++){
-                    float x_sample=(rx+i)/Samples;
-                    float y_sample=(ry+j)/Samples;
-                    Vector2D p((x+x_sample)/((float)inputwidth),(y+y_sample)/((float)inputheight));
-                    
-                    float c0 = a1*(b0 - p.y) + b1*(p.x - a0);
-                    float c1 = a3*(b0 - p.y) + b3*(p.x - a0) + a1*b2 -a2*b1;
-                    float c2 = a3*b2 - a2*b3;
-                    
-                    float v1 = (-c1 + sqrt((c1*c1)-4*c2*c0))/(2*c2);
-                    float v2 = (-c1 - sqrt((c1*c1)-4*c2*c0))/(2*c2);
-                    float u1 = (p.x-a0 -a2*v1)/ (a1 + a3*v1);
-                    float u2 = (p.x-a0 -a2*v2)/ (a1 + a3*v2);
-
-                    float u,v;
-                    if (v1>0 && v1<1 && u1>0 && u1>1) {
-                        v = v1;
-                        u = u1;
-                    }
-                    if (v2>0 && v2<1 && u2>0 && u2<1) {
-                        v = v2;
-                        u = u2;
-                    }
-                    //printf("%f %f\n",u,v);
-                    int inputx, inputy;
-                    inputx = 0 + (inputwidth - 0)*u;
-                    inputy = 0 + (inputheight - 0)*v;
-                    inputx = (int)(inputx + 0.5);
-                    inputy = (int)(inputy + 0.5);
-                    
-                    int inputi = (inputy * inputwidth + inputx) * 3;
-                    color[0] += in[inputi++];
-                    color[1] += in[inputi++];
-                    color[2] += in[inputi];
+    for (int y = 0; y < outputheight; y++) {
+        for (int x = 0; x < outputwidth; x++) {
+            int pixel = (y * outputwidth + x) * 3;
+            float randNum = (1.0*rand() /RAND_MAX );
+            for (int i = 0; i < 3; i++) {
+                float oldpixel = out[pixel + i] + ( randNum - 0.5) * round(level * 1.0 / outlevel);
+                if (oldpixel < 0 ) {
+                    oldpixel = 0;
                 }
+                
+                if (oldpixel > 255) {
+                    oldpixel = 255;
+                }
+                int newpixel = find_closest_palette_color(oldpixel);
+                out[pixel+i] = newpixel;
+
             }
-            
-            out[pix++] = color[0] / powf(Samples,2);
-            out[pix++] = color[1] / powf(Samples,2);
-            out[pix] = color[2] / powf(Samples,2);
+        }
+    }
+
+}
+
+void Screening(int size)
+{
+    for (int y = outputheight-1; y >= 0; y-=size) {
+        for (int x = 0; x < outputwidth; x+=size) {
+            int pixel = (y * outputwidth + x) * 3;
+            int total_color = 0;
+			int count = 0;
+			for(int i = 0; i < size; i++){
+				for(int j = 0; j < size; j++){
+					pixel=((y-i)*outputwidth+x+j)*3;
+					if( y-i >= 0 && x+j < outputwidth){
+						total_color += out[pixel];
+						total_color += out[pixel + 1];
+						total_color += out[pixel + 2];
+						count = count + 3;
+					}
+				}
+			}
+			total_color = total_color/count;
+            float r = size*sqrt(total_color/255.0 /3.14);
+			int center_y=y-size/2.0;
+			int center_x=x+size/2.0;
+			for(int i=0;i<size;i++){
+				for(int j=0;j<size;j++){
+					pixel=((y-i)*outputwidth+x+j)*3;
+					if( y-i >0 && x+j <outputwidth){
+						float temp_x= x + j;
+						float temp_y= y - i;
+						float dis= sqrt( pow(temp_x-center_x,2)+pow(temp_y-center_y,2) );
+						if(dis > r){
+							out[pixel] = 0;
+							out[pixel+1] = 0;
+							out[pixel+2] = 0;
+						}
+						else{
+							out[pixel] = 255;
+							out[pixel+1] = 255;
+							out[pixel+2] = 255;
+						}
+					}
+				}
+			}
             
         }
     }
 }
+
 void outputImage(char *outfile)
 {
     ppmview output;
     output.width = outputwidth;
     output.height = outputheight;
-    output.maxcolor = level;
+    output.maxcolor = outlevel;
     output.pixmap = out;
     if (outfile != NULL) {
         output.writePPM(outfile,0);
+        //output.writePGM(outfile, 0);
     }
 
 }
@@ -397,9 +363,7 @@ int main(int argc, char *argv[])
     char * filename = {};
     char *outFile = {};
     char operation[10];
-    float parameter1, parameter2 = 0;
-    bool bilinear = false;  // false:projective  true:bilinear
-    int transNum = 0;   //# of transformation
+    int size;
     
     if (argc == 1) {
         printf("Error! No input file.\n");
@@ -413,65 +377,51 @@ int main(int argc, char *argv[])
     }
     
     setPixels(filename);
-
-    //transformation control
-    printf("Enter the projective warp(s) you want to perform:\n"
-           "r theta  - rotate theta degree (CCW).\n"
-           "s sx sy  - scale.\n"
-           "t dx dy  - translate.\n"
-           "f xf yf  - mirror. (1 = flip, 0 = no flip)\n"
-           "h hx hy  - shear.\n"
-           "p px py  - perspective.\n"
-           "o        - own transformation\n"
-           "-b       - change to bilinear mode\n"
-           "d        - done.\n");
-           
-    while (1) {
-        printf("Enter warp:");
+    
+    //reduce color
+    printf("The original image has %d levels. Reduce it to ?\n"
+           "Please choose from 2, 4, 8, 16, 32, 64, 128:", level);
+    scanf("%d",&outlevel);
+    while (outlevel != 2 && outlevel != 4 && outlevel != 8 && outlevel != 16 && outlevel != 32 && outlevel != 64 && outlevel != 128 ) {
+        printf("Invalid input, please try again.\n");
+        printf("The original image has %d levels. Reduce it to ?\n"
+               "Please choose from 2, 4, 8, 16, 32, 64, 128 ", level);
+        scanf("%d",&outlevel);
+    }
+    //operation control
+    printf("Enter the operation you want to perform:\n"
+           "f  - Floyd-Steinberg Error diffusion\n"
+           "o  - Ordered Dither\n"
+           "r  - Random Noise Dither\n"
+           "a  - Artistic Screening\n");
+    
+    printf("Enter operation:");
+    scanf("%s", operation);
+    while (operation[0] != 'f' && operation[0] != 'o' && operation[0] != 'r' && operation[0] != 'a') {
+        printf("Invalid input, please try again.\n");
+        printf("Enter operation:");
         scanf("%s", operation);
-        while (operation[0] != 'r' && operation[0] != 's' && operation[0] != 't' && operation[0] != 'f' && operation[0] != 'h' && operation[0] != 'p' && operation[0] != 'o' && operation[0] != 'd' && operation[0] != '-') {
-            printf("Invalid input, please try again.\n");
-            printf("Enter warp:");
-            scanf("%s", operation);
-        }
-        
-        if (strcmp(operation,"-b") == 0 && transNum == 0) {
-            bilinear = !bilinear;
-            printf("Mode changed successfully.\n");
-            if (bilinear) {
-                printf("Now it's bilinear warping.\n");
-            }else {
-                printf("Now it's projective warping.\n");
-            }
-        }else if (strcmp(operation,"-b") == 0 && transNum != 0) {
-            printf("Can't change mode now. Change it before any transformation applied.\n");
-        }
-
-        if (strcmp(operation, "d") != 0 && strcmp(operation, "-b") != 0 && strcmp(operation, "o") != 0) {
-            scanf("%f", &parameter1);
-        }else if ( strcmp(operation, "d") == 0){
-            break;
-        }
-        
-        if (strcmp(operation,"r") != 0 && strcmp(operation, "-b") != 0 && strcmp(operation, "o") != 0) {
-            scanf("%f", &parameter2);
-        }
-
-        transform(operation, parameter1, parameter2);
-        transNum++;
     }
     
-    transformCorner();
     initializeOutput();
-    
-    if (bilinear) {
-        bilinearWarping();
-    }else{
-        InverseWarping();
+    if (operation[0] == 'f') {
+        FSErrorDiffusion();
     }
+    if (operation[0] == 'o') {
+        OrderedDither();
+    }
+    if (operation[0] == 'r') {
+        RandNoiseDither();
+    }
+    if (operation[0] == 'a') {
+        printf("Enter screening size:");
+        scanf("%d",&size);
+        Screening(size);
+    }
+    
     if (argc == 3) {
         outputImage(outFile);
-        printf("[Your program will display and save the warped image.]\n");
+        printf("[Your program will display and save the output image.]\n");
     }
 
     // OpenGL Commands:
